@@ -11,14 +11,12 @@ public class Maze {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Renamed fields to avoid reserved keywords.
     @Column(name = "maze_row", nullable = false)
     private int mazeRow;
 
     @Column(name = "maze_col", nullable = false)
     private int mazeCol;
 
-    // For the obstacles collection, override the column names for the embedded Cell.
     @ElementCollection
     @CollectionTable(name = "maze_obstacles", joinColumns = @JoinColumn(name = "maze_id"))
     @AttributeOverrides({
@@ -27,7 +25,6 @@ public class Maze {
     })
     private Set<Cell> obstacles = new HashSet<>();
 
-    // For the steps collection, override the embedded Cell column names as well.
     @ElementCollection
     @CollectionTable(name = "maze_steps", joinColumns = @JoinColumn(name = "maze_id"))
     @OrderColumn(name = "step_order")
@@ -49,7 +46,6 @@ public class Maze {
         this.createdAt = LocalDateTime.now();
     }
 
-    // Getters and setters.
     public Long getId() {
         return id;
     }

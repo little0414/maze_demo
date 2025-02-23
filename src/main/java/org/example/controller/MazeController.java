@@ -15,7 +15,6 @@ public class MazeController {
     @Autowired
     private MazeService mazeService;
 
-    // POST endpoint: generate a new maze and return its HTML view.
     @GetMapping(produces = MediaType.TEXT_HTML_VALUE)
     public String createMaze(@RequestParam(defaultValue = "10") int row,
                              @RequestParam(defaultValue = "10") int col) {
@@ -24,7 +23,6 @@ public class MazeController {
         return view.render();
     }
 
-    // GET endpoint: retrieve an existing maze by id and return its HTML view.
     @GetMapping(value = "/{id}", produces = MediaType.TEXT_HTML_VALUE)
     public String getMaze(@PathVariable Long id) {
         Maze maze = mazeService.getMazeById(id).orElse(null);

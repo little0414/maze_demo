@@ -27,7 +27,8 @@ public class MazeViewImpl implements MazeView {
         sb.append("td.solution { background-color: #8f8; }");
         sb.append("</style>");
         sb.append("</head><body>");
-        sb.append("<h1>Maze Viewer</h1>");
+        // Display the heading with Maze ID included.
+        sb.append("<h1>Maze Viewer (ID: ").append(maze.getId()).append(")</h1>");
 
         // First show the maze layout without solution numbers.
         sb.append("<h2>Maze</h2>");

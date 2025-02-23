@@ -35,19 +35,16 @@ public class MazeServiceTest {
 
         Maze maze = mazeService.generatePerfectMaze(rows, cols);
 
-        // Verify the maze is not null and dimensions match.
         assertNotNull(maze, "Maze should not be null");
         assertEquals(rows, maze.getMazeRow(), "Maze row count should be " + rows);
         assertEquals(cols, maze.getMazeCol(), "Maze col count should be " + cols);
 
-        // Verify that the solution path is generated and starts and ends correctly.
         assertNotNull(maze.getSteps(), "Solution steps should not be null");
         assertFalse(maze.getSteps().isEmpty(), "Solution steps should not be empty");
         assertEquals(new Cell(0, 0), maze.getSteps().get(0), "Solution must start at (0,0)");
         assertEquals(new Cell(rows - 1, cols - 1), maze.getSteps().get(maze.getSteps().size() - 1),
                 "Solution must end at (" + (rows - 1) + "," + (cols - 1) + ")");
 
-        // Verify that MazeRepository.save was called.
         verify(mazeRepository, times(1)).save(maze);
     }
 
@@ -55,7 +52,7 @@ public class MazeServiceTest {
     public void testGeneratePerfectMazeHasUniqueSolution() {
         int rows = 10;
         int cols = 10;
-        // When saving, return the same maze instance.
+
         when(mazeRepository.save(any(Maze.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Maze maze = mazeService.generatePerfectMaze(rows, cols);
