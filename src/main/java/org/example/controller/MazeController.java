@@ -1,7 +1,7 @@
 package org.example.controller;
 
-import org.example.client.MazePresenter;
 import org.example.client.MazeView;
+import org.example.client.MazeViewImpl;
 import org.example.domain.Maze;
 import org.example.service.MazeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +20,7 @@ public class MazeController {
     public String createMaze(@RequestParam(defaultValue = "10") int row,
                              @RequestParam(defaultValue = "10") int col) {
         Maze maze = mazeService.generatePerfectMaze(row, col);
-        MazePresenter presenter = new MazePresenter(maze);
-        MazeView view = presenter.createView();
+        MazeView view = new MazeViewImpl(maze);
         return view.render();
     }
 
@@ -32,8 +31,7 @@ public class MazeController {
         if (maze == null) {
             return "<html><body><h1>Maze not found</h1></body></html>";
         }
-        MazePresenter presenter = new MazePresenter(maze);
-        MazeView view = presenter.createView();
+        MazeView view = new MazeViewImpl(maze);
         return view.render();
     }
 }
