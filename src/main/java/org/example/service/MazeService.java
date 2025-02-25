@@ -16,88 +16,25 @@ public class MazeService {
     @Autowired
     private MazeRepository mazeRepository;
 
+    // Static direction arrays for up, right, down, left.
+    private static final int[] DR = {-1, 0, 1, 0};
+    private static final int[] DC = {0, 1, 0, -1};
+
     /**
      * Generates a perfect maze with a unique solution path and extra dead-end branches.
      * Free cells are determined by carving out a unique solution path and then carving branches.
-     * When carving branches, if the surrounding of a candidate cell (except the branch's origin or previous cell)
-     * contains any free cell, that candidate is excluded.
-     * Additionally, for each step in a branch the direction is chosen randomly from the valid ones.
      */
     public Maze generatePerfectMaze(int row, int col) {
         boolean[][] free = new boolean[row][col];
-        List<Cell> solutionPath = new ArrayList<>();
         Random rand = new Random();
-        int r = 0, c = 0;
-        solutionPath.add(new Cell(r, c));
-        free[r][c] = true;
+
         // Generate the unique solution path by moving right or down.
-        while (r != row - 1 || c != col - 1) {
-            if (r == row - 1) {
-                c++;
-            } else if (c == col - 1) {
-                r++;
-            } else {
-                if (rand.nextBoolean()) {
-                    c++;
-                } else {
-                    r++;
-                }
-            }
-            solutionPath.add(new Cell(r, c));
-            free[r][c] = true;
-        }
+        List<Cell> solutionPath = generateSolutionPath(row, col, free, rand);
 
         // Carve extra dead-end branches from the solution path cells.
-        int[] dr = {-1, 0, 1, 0}; // up, right, down, left
-        int[] dc = {0, 1, 0, -1};
         for (Cell cell : solutionPath) {
             if (rand.nextDouble() < 0.8) { // 80% chance to attempt a branch
-                // Gather all valid initial directions from the solution cell.
-                List<Integer> validDirs = new ArrayList<>();
-                for (int d = 0; d < 4; d++) {
-                    int nr = cell.getRow() + dr[d];
-                    int nc = cell.getCol() + dc[d];
-                    // Check in bounds, not already free, not on the solution path,
-                    // and ensure no adjacent free cell (except the branch's origin cell).
-                    if (nr >= 0 && nr < row && nc >= 0 && nc < col
-                            && !free[nr][nc]
-                            && !solutionPath.contains(new Cell(nr, nc))
-                            && !hasAdjacentFreeCellExcluding(nr, nc, row, col, free, cell)) {
-                        validDirs.add(d);
-                    }
-                }
-                // If there are valid directions, pick one at random for the first branch cell.
-                if (!validDirs.isEmpty()) {
-                    int initialDir = validDirs.get(rand.nextInt(validDirs.size()));
-                    int br = cell.getRow() + dr[initialDir];
-                    int bc = cell.getCol() + dc[initialDir];
-                    free[br][bc] = true;
-                    // Determine branch length randomly (at most the minimum of rows and col).
-                    int branchLength = rand.nextInt(min(row, col)) + 1;
-                    // For each subsequent branch step, choose a new random direction among valid ones.
-                    for (int i = 1; i < branchLength; i++) {
-                        List<Integer> branchValidDirs = new ArrayList<>();
-                        // Calculate valid directions for the current branch cell.
-                        for (int d = 0; d < 4; d++) {
-                            int nrr = br + dr[d];
-                            int nrc = bc + dc[d];
-                            // Here we exclude the immediate previous branch cell by using the current branch cell as "exclude".
-                            if (nrr >= 0 && nrr < row && nrc >= 0 && nrc < col
-                                    && !free[nrr][nrc]
-                                    && !solutionPath.contains(new Cell(nrr, nrc))
-                                    && !hasAdjacentFreeCellExcluding(nrr, nrc, row, col, free, new Cell(br, bc))) {
-                                branchValidDirs.add(d);
-                            }
-                        }
-                        if (branchValidDirs.isEmpty()) {
-                            break;
-                        }
-                        int chosenDir = branchValidDirs.get(rand.nextInt(branchValidDirs.size()));
-                        br = br + dr[chosenDir];
-                        bc = bc + dc[chosenDir];
-                        free[br][bc] = true;
-                    }
-                }
+                carveBranch(cell, row, col, free, solutionPath, rand);
             }
         }
 
@@ -115,16 +52,93 @@ public class MazeService {
         return maze;
     }
 
+    public Optional<Maze> getMazeById(Long id) {
+        return mazeRepository.findById(id);
+    }
+
     /**
-     * Checks if the cell at (r, c) has any adjacent free cell (in the four cardinal directions)
-     * other than the specified exclude cell.
+     * Generates the unique solution path by moving right or down, starting from (0,0)
+     * and ending at (row-1, col-1). It marks the corresponding cells as free.
      */
-    private boolean hasAdjacentFreeCellExcluding(int r, int c, int row, int col, boolean[][] free, Cell exclude) {
-        int[] dr = {-1, 0, 1, 0};
-        int[] dc = {0, 1, 0, -1};
+    private List<Cell> generateSolutionPath(int row, int col, boolean[][] free, Random rand) {
+        List<Cell> solutionPath = new ArrayList<>();
+        int r = 0, c = 0;
+        solutionPath.add(new Cell(r, c));
+        free[r][c] = true;
+        while (r != row - 1 || c != col - 1) {
+            if (r == row - 1) {
+                c++;
+            } else if (c == col - 1) {
+                r++;
+            } else {
+                if (rand.nextBoolean()) {
+                    c++;
+                } else {
+                    r++;
+                }
+            }
+            solutionPath.add(new Cell(r, c));
+            free[r][c] = true;
+        }
+        return solutionPath;
+    }
+
+    /**
+     * Attempts to carve a branch from the given solution cell.
+     * First obtains valid directions from the solution cell
+     * If any are available, it picks one at random as the initial branch direction,
+     * determines a random branch length, and then for each subsequent branch step
+     * it picks a new valid direction randomly.
+     */
+    private void carveBranch(Cell cell, int row, int col, boolean[][] free, List<Cell> solutionPath, Random rand) {
+        List<Integer> validDirs = getValidDirections(cell, row, col, free, solutionPath, cell);
+        if (validDirs.isEmpty()) {
+            return;
+        }
+        int initialDir = validDirs.get(rand.nextInt(validDirs.size()));
+        int br = cell.getRow() + DR[initialDir];
+        int bc = cell.getCol() + DC[initialDir];
+        free[br][bc] = true;
+        int branchLength = rand.nextInt(min(row, col)) + 1;
+        for (int i = 1; i < branchLength; i++) {
+            List<Integer> branchValidDirs = getValidDirections(new Cell(br, bc), row, col, free, solutionPath, new Cell(br, bc));
+            if (branchValidDirs.isEmpty()) {
+                break;
+            }
+            int chosenDir = branchValidDirs.get(rand.nextInt(branchValidDirs.size()));
+            br += DR[chosenDir];
+            bc += DC[chosenDir];
+            free[br][bc] = true;
+        }
+    }
+
+    /**
+     * Returns a list of valid directions (0: up, 1: right, 2: down, 3: left) from a given cell.
+     * A direction is valid if:
+     *   - The neighbor cell is within bounds.
+     *   - The neighbor cell is not already free.
+     *   - The neighbor cell is not in the solution path.
+     *   - The neighbor cell does not have any adjacent free cell (other than the specified exclude cell).
+     */
+    private List<Integer> getValidDirections(Cell cell, int row, int col, boolean[][] free, List<Cell> solutionPath, Cell exclude) {
+        List<Integer> validDirs = new ArrayList<>();
+        for (int d = 0; d < 4; d++) {
+            int nr = cell.getRow() + DR[d];
+            int nc = cell.getCol() + DC[d];
+            if (nr >= 0 && nr < row && nc >= 0 && nc < col
+                    && !free[nr][nc]
+                    && !solutionPath.contains(new Cell(nr, nc))
+                    && !hasAdjacentFreeCell(nr, nc, row, col, free, exclude)) {
+                validDirs.add(d);
+            }
+        }
+        return validDirs;
+    }
+
+    private boolean hasAdjacentFreeCell(int r, int c, int row, int col, boolean[][] free, Cell exclude) {
         for (int i = 0; i < 4; i++) {
-            int nr = r + dr[i];
-            int nc = c + dc[i];
+            int nr = r + DR[i];
+            int nc = c + DC[i];
             if (nr >= 0 && nr < row && nc >= 0 && nc < col) {
                 if (free[nr][nc] && !(nr == exclude.getRow() && nc == exclude.getCol())) {
                     return true;
@@ -132,9 +146,5 @@ public class MazeService {
             }
         }
         return false;
-    }
-
-    public Optional<Maze> getMazeById(Long id) {
-        return mazeRepository.findById(id);
     }
 }
